@@ -1,0 +1,203 @@
+-- Suckers Exploit Hub v1.0 - Mobile Compatible | GUI, ESP, Chams, Aimbot Placeholder, Status Panel
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+--// Settings Table
+local ESPSettings = {
+    Boxes = false,
+    Tracers = false,
+    Names = false,
+    HealthBars = false,
+    TeamCheck = true,
+    MaxDistance = 1000,
+    Chams = false,
+    TeamColors = true,
+    BlinkLowHP = true,
+    LowHPThreshold = 30
+}
+
+local aimbotEnabled = false -- Placeholder for future expansion
+
+--// GUI Loader
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source.lua"))()
+end)
+
+if not success then
+    warn("Failed to load Rayfield UI library.")
+    return
+end
+
+local Window = Rayfield:CreateWindow({
+    Name = "Suckers Exploit Hub (Mobile)",
+    LoadingTitle = "Injecting Mobile Mayhem...",
+    LoadingSubtitle = "Built by Sucker & Orion",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "SuckersHub",
+        FileName = "user_config"
+    },
+    Discord = { Enabled = false },
+    KeySystem = false
+})
+
+-- Tabs
+local MainTab = Window:CreateTab("Main", 4483362458)
+local ESPTab = Window:CreateTab("ESP", 6031265976)
+local AimbotTab = Window:CreateTab("Aimbot", 6031075938)
+local SystemTab = Window:CreateTab("System", 6034509993)
+local CreditsTab = Window:CreateTab("Credits", 6034980589)
+
+-- Reusable Toggle Creator
+local function createToggle(tab, name, settingKey, callback)
+    tab:CreateToggle({
+        Name = name,
+        CurrentValue = ESPSettings[settingKey],
+        Callback = function(v)
+            ESPSettings[settingKey] = v
+            if callback then callback(v) end
+        end
+    })
+end
+
+-- ESP Toggles
+createToggle(ESPTab, "ESP: Show Boxes", "Boxes")
+createToggle(ESPTab, "ESP: Show Tracers", "Tracers")
+createToggle(ESPTab, "ESP: Show Names", "Names")
+createToggle(ESPTab, "ESP: Health Bars", "HealthBars")
+createToggle(ESPTab, "ESP: Team Check", "TeamCheck")
+ESPTab:CreateSlider({ Name = "ESP Max Distance", Range = {50, 5000}, Increment = 100, CurrentValue = ESPSettings.MaxDistance, Callback = function(v) ESPSettings.MaxDistance = v end })
+
+createToggle(ESPTab, "ESP: Chams (Wallhack)", "Chams", function() updateChams() end)
+createToggle(ESPTab, "Team-Based Colors", "TeamColors", function() updateChams() end)
+createToggle(ESPTab, "Blink on Low HP", "BlinkLowHP")
+ESPTab:CreateSlider({ Name = "Low HP Blink Threshold", Range = {1, 100}, Increment = 1, CurrentValue = ESPSettings.LowHPThreshold, Callback = function(v) ESPSettings.LowHPThreshold = v end })
+
+-- Placeholder Aimbot UI
+AimbotTab:CreateToggle({ Name = "Enable Aimbot (WIP)", CurrentValue = aimbotEnabled, Callback = function(v) aimbotEnabled = v end })
+
+-- System Tab
+local executorName = (identifyexecutor and identifyexecutor()) or "Unknown Executor"
+SystemTab:CreateParagraph({ Title = "Exploit Info", Content = "Executor: " .. executorName })
+local statusParagraph = SystemTab:CreateParagraph({ Title = "Live Status", Content = "Loading..." })
+
+SystemTab:CreateDropdown({
+    Name = "Theme Selector",
+    Options = {"Default", "Dark", "Neon", "Red Alert"},
+    CurrentOption = "Default",
+    Callback = function(v)
+        print("Selected Theme:", v)
+    end,
+})
+
+-- Credits Tab
+CreditsTab:CreateParagraph({
+    Title = "Built by:",
+    Content = "Sucker & Professor Orion\nScripted for Chaos.\nGitHub: github.com/yourrepo"
+})
+
+-- Chams Logic
+local function getTeamColor(player)
+    if not ESPSettings.TeamColors then
+        return Color3.fromRGB(255, 0, 0)
+    end
+    return (player.Team == LocalPlayer.Team) and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+end
+
+local function applyChams(player)
+    if player == LocalPlayer then return end
+    local character = player.Character
+    if not character or not character:FindFirstChild("Humanoid") then return end
+
+    local highlight = character:FindFirstChild("ChamHighlight")
+    if not highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "ChamHighlight"
+        highlight.Adornee = character
+        highlight.Parent = character
+    end
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.FillColor = getTeamColor(player)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.Enabled = true
+end
+
+local function removeChams(player)
+    local char = player.Character
+    if char then
+        local highlight = char:FindFirstChild("ChamHighlight")
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+end
+
+function updateChams()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if ESPSettings.Chams then
+                applyChams(player)
+            else
+                removeChams(player)
+            end
+        end
+    end
+end
+
+-- Player & Character Monitoring
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.delay(1, function()
+            if ESPSettings.Chams then applyChams(p) end
+        end)
+    end)
+end)
+
+for _, p in pairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer and p.Character then
+        if ESPSettings.Chams then applyChams(p) end
+    end
+end
+
+-- Blinking + Status Loop (Optimized)
+RunService.RenderStepped:Connect(function(dt)
+    local blink = math.floor(tick() * 2) % 2 == 0
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local char = player.Character
+            if char then
+                local highlight = char:FindFirstChild("ChamHighlight")
+                local humanoid = char:FindFirstChild("Humanoid")
+                if highlight and humanoid and ESPSettings.BlinkLowHP and humanoid.Health > 0 then
+                    highlight.Enabled = (humanoid.Health <= ESPSettings.LowHPThreshold) and blink or true
+                elseif highlight then
+                    highlight.Enabled = true
+                end
+            end
+        end
+    end
+
+    local fps = math.floor(1 / dt)
+    statusParagraph:Set("ESP: " .. tostring(ESPSettings.Boxes) ..
+        "\nAimbot: " .. tostring(aimbotEnabled) ..
+        "\nChams: " .. tostring(ESPSettings.Chams) ..
+        "\nFPS: " .. fps)
+end)
+
+-- Mobile UI Tweaks
+if UserInputService.TouchEnabled then
+    Rayfield:Notify({
+        Title = "Mobile Mode",
+        Content = "Touch controls detected. GUI adjusted for mobile use.",
+        Duration = 5
+    })
+end
+
+--// Script End //--
